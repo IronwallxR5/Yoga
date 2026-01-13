@@ -22,8 +22,11 @@ function App() {
     setError(null);
     setResponse(null);
 
+    // Use environment variable for API URL or fall back to relative path (proxy)
+    const apiUrl = process.env.REACT_APP_API_URL || '';
+
     try {
-      const result = await axios.post('/api/ask', { query: q });
+      const result = await axios.post(`${apiUrl}/api/ask`, { query: q });
       setResponse(result.data);
       setQuery(''); // Clear input after submission
     } catch (err) {
@@ -35,8 +38,9 @@ function App() {
 
   const handleFeedback = async (helpful) => {
     if (!response?.queryId) return;
+    const apiUrl = process.env.REACT_APP_API_URL || '';
     try {
-      await axios.post('/api/feedback', {
+      await axios.post(`${apiUrl}/api/feedback`, {
         queryId: response.queryId,
         helpful
       });
