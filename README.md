@@ -13,17 +13,24 @@
 
 ## 📋 Table of Contents
 
-- [Overview](#overview)
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Architecture](#architecture)
-- [Setup Instructions](#setup-instructions)
-- [Usage](#usage)
-- [API Documentation](#api-documentation)
-- [Safety System](#safety-system)
-- [Data Models](#data-models)
-- [Demo](#demo)
-- [AI Tools Used](#ai-tools-used)
+- [Overview](#-overview)
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Architecture & Pipeline](#-architecture--pipeline)
+- [Key Architectural Decisions](#-key-architectural-decisions)
+- [Author](#-author)
+- [License & Attribution](#-license--attribution)
+- [Setup Instructions](#-setup-instructions)
+- [Usage](#-usage)
+- [API Documentation](#-api-documentation)
+- [Safety System](#-safety-system)
+- [Data Models](#-data-models)
+- [Demo](#-demo)
+- [AI Tools Used](#-ai-tools-used)
+- [Project Statistics](#-project-statistics)
+- [Testing](#-testing)
+- [Evaluation Criteria](#-evaluation-criteria-compliance)
+- [Troubleshooting](#-troubleshooting)
 
 ## 🎯 Overview
 
@@ -123,7 +130,7 @@ graph TD
 | 5. Analytics Log | MongoDB Atlas | ~100ms |
 | **Total Latency** | **End-to-End** | **~1.2 - 2.0s** |
 
-## 🛠️ Tech Stack
+### 🛠️ Tech Stack Summary
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
