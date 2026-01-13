@@ -153,7 +153,7 @@ The interface was custom-designed with a psychological focus on calmness (Sage G
 **Padam Rathi**  
 *Full Stack Developer & AI Engineer*  
 
-Built with ❤️ for the **Google×Kaggle Agentic AI Course**.
+
 
 ---
 
@@ -616,4 +616,4 @@ Always consult with qualified healthcare providers and certified yoga instructor
 
 ---
 
-**Built with ❤️ for the Agentic AI Course by Google×Kaggle**
+
