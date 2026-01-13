@@ -27,9 +27,10 @@ app.use(cors({
     const normalizedOrigin = origin.replace(/\/$/, '');
     const normalizedAllowed = allowedOrigins.map(o => o?.replace(/\/$/, ''));
     
-    // Check exact match or Vercel preview URL pattern
+    // Check exact match or Vercel preview URL pattern (includes preview deployments)
     if (normalizedAllowed.includes(normalizedOrigin) || 
-        normalizedOrigin.match(/^https:\/\/yoga.*\.vercel\.app$/)) {
+        normalizedOrigin.match(/^https:\/\/yoga[a-z0-9-]*\.vercel\.app$/)) {
+      console.log('CORS allowed origin:', origin);
       return callback(null, true);
     }
     
