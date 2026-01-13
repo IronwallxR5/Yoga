@@ -88,68 +88,79 @@ The system implements a comprehensive safety layer that detects and handles quer
 }
 ```
 
-## 🏗️ Architecture
+## 🏗️ Architecture & Pipeline
 
-### System Architecture
-
-```
-┌─────────────┐         ┌──────────────────┐         ┌─────────────┐
-│   Client    │◄────────┤  Express Server  ├────────►│   MongoDB   │
-│  (React)    │         │   (Port 5001)    │         │  (Logging)  │
-└─────────────┘         └────────┬─────────┘         └─────────────┘
-                                 │
-                    ┌────────────┼────────────┐
-                    │            │            │
-              ┌─────▼────┐  ┌────▼─────┐  ┌──▼──────────┐
-              │  Vector  │  │  Safety  │  │ AI Service  │
-              │  Store   │  │  Service │  │  (OpenAI)   │
-              └──────────┘  └──────────┘  └─────────────┘
-```
-
-### RAG Pipeline Flow
+### Detailed RAG Pipeline
 
 ```mermaid
-graph LR
-    A[User Query] --> B[Safety Check]
-    B -->|Unsafe| C[Safety Response]
-    B -->|Safe| D[Generate Embedding]
-    D --> E[Vector Similarity Search]
-    E --> F[Retrieve Top 5 Chunks]
-    F --> G[Build Context]
-    G --> H[Query AI Model]
-    H --> I[Return Answer + Sources]
-    I --> J[Log to MongoDB]
-    C --> J
+graph TD
+    User[User Query] -->|POST /api/ask| Safety[🛡️ Safety Detection]
+    Safety -->|Unsafe| Warning[⚠️ Return Safety Warning]
+    Safety -->|Safe| Embed[⚡ Generate Embedding]
+    
+    subgraph "Local Processing"
+    Embed -->|Transformers.js| Vector{384d Vector}
+    end
+    
+    Vector -->|Search| Pinecone[(🌲 Pinecone DB)]
+    Pinecone -->|Return Top 5| Context[📄 Build Context]
+    
+    Context -->|Prompt| LLM[🤖 OpenAI GPT-3.5]
+    LLM -->|Response| Log[💾 MongoDB Logging]
+    Warning --> Log
+    
+    Log -->|Return| UI[✨ React UI]
 ```
 
-### RAG Implementation Details
+### ⚡ Performance Breakdown
 
-#### 1. **Document Chunking**
-- **Input**: 100 yoga articles from `yoga_knowledge.json`
-- **Chunk Strategy**: Each article is a single chunk (not split further)
-- **Chunk Content**: Title + Info + Precautions combined into searchable text
-- **Metadata**: id, title, source, page, precautions
+| Step | Component | Time (Approx) |
+|------|-----------|---------------|
+| 1. Input Validation | Safety Middlewarw | ~30ms |
+| 2. Embedding Gen | Transformers.js (Local) | ~400-500ms |
+| 3. Vector Search | Pinecone (Serverless) | ~100-200ms |
+| 4. AI Generation | GPT-3.5 Turbo | ~800-1500ms |
+| 5. Analytics Log | MongoDB Atlas | ~100ms |
+| **Total Latency** | **End-to-End** | **~1.5 - 2.5s** |
 
-#### 2. **Embedding Generation**
-- **Model**: Xenova/all-MiniLM-L6-v2 (runs locally, no API calls)
-- **Dimension**: 384-dimensional dense vectors
-- **Processing**: Batch processing with progress logging (every 10 documents)
-- **Storage**: JSON files in `./vector_store/` directory
-  - `documents.json`: Original document metadata
-  - `embeddings.json`: Corresponding vector embeddings
+## 🛠️ Tech Stack
 
-#### 3. **Retrieval**
-- **Method**: Cosine similarity between query and document embeddings
-- **Top-K**: Retrieves 5 most relevant documents
-- **Threshold**: No minimum score (always returns top 5)
-- **Response Time**: ~50-200ms for search
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **Vector DB** | 🌲 Pinecone | Scalable cloud vector storage (384d) |
+| **Embeddings** | ⚡ Transformers.js | Free, local privacy-first generation |
+| **LLM** | 🧠 OpenAI GPT-3.5 | Robust answer generation |
+| **Database** | 🍃 MongoDB | Analytics & audit logging |
+| **Backend** | 🟢 Node.js + Express | REST API & logic layer |
+| **Frontend** | ⚛️ React 18 | Modern, responsive chat UI |
 
-#### 4. **Answer Generation**
-- **Context Building**: Combines top 5 retrieved documents with metadata
-- **Prompt Engineering**: System prompt emphasizes safety and accuracy
-- **Model**: GPT-3.5-turbo with temperature=0.7
-- **Max Tokens**: 500 (concise but complete answers)
-- **Fallback**: If OpenAI fails, returns excerpts from top document
+## 📝 Key Architectural Decisions
+
+### 1. Hybrid RAG Approach (Local + Cloud)
+We utilize **local embeddings** (`@xenova/transformers`) combined with **cloud vector storage** (Pinecone).
+- **Why?** This eliminates embedding API costs while leveraging the scalability and speed of a managed vector database.
+
+### 2. Mandatory Safety Layer
+A rigid "Safety First" architecture that intercepts queries *before* they reach the AI.
+- **Why?** In the wellness domain, preventing harm is critical. We don't rely solely on the LLM to refuse unsafe requests; we deterministically block them based on medical keywords.
+
+### 3. "Zen Mode" UX
+The interface was custom-designed with a psychological focus on calmness (Sage Green/Tan palette).
+- **Why?** Users seeking yoga guidance often want stress relief. The UI itself should not induce anxiety with stark contrasts or complex layouts.
+
+## 👤 Author
+
+**Padam Rathi**  
+*Full Stack Developer & AI Engineer*  
+
+Built with ❤️ for the **Google×Kaggle Agentic AI Course**.
+
+---
+
+## 📜 License & attribution
+
+This project uses data from the **Common Yoga Protocol** by the Ministry of Ayush, Government of India.
+Mutilated for educational purposes.
 
 ## 📦 Setup Instructions
 
@@ -592,10 +603,6 @@ cd backend && npm run init-embeddings
 # Solution: System automatically uses fallback mode
 # Fallback returns excerpts from knowledge base
 ```
-
-## 📝 License
-
-This project uses data from the **Common Yoga Protocol** by the Ministry of Ayush, Government of India.
 
 ## ⚠️ Disclaimer
 
