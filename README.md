@@ -83,8 +83,8 @@ The system implements a comprehensive safety layer that detects and handles quer
   "@xenova/transformers": "^2.17.1",  // Local embedding generation
   "mongoose": "^8.1.1",                 // MongoDB ODM
   "@google/generative-ai": "^0.2.0",    // Google Gemini API
-  "express": "^4.18.2",                 // Backend framework
-  "react": "^18.2.0"                    // Frontend framework
+  "@pinecone-database/pinecone": "^6.0.0", // Vector Database
+  "express": "^4.18.2"                  // Backend framework
 }
 ```
 
@@ -202,6 +202,10 @@ FRONTEND_URL=http://localhost:3000
 # Vector Store Configuration
 VECTOR_STORE_PATH=./vector_store
 EMBEDDING_MODEL=Xenova/all-MiniLM-L6-v2
+
+# Pinecone Configuration
+PINECONE_API_KEY=your_pinecone_api_key
+PINECONE_INDEX=yoga-rag
 ```
 
 Create `frontend/.env`:
