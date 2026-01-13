@@ -30,38 +30,54 @@ router.post('/ask', async (req, res) => {
 
     console.log(`📝 Received query: "${query}"`);
 
-    // Step 1: Safety Detection
+    // Step 1: Safety Detection - Check FIRST before any processing
     const safetyCheck = safetyService.detectUnsafeConditions(query);
     const { isUnsafe, detectedConditions, detectedKeywords } = safetyCheck;
 
     console.log(`🔒 Safety check: ${isUnsafe ? 'UNSAFE' : 'SAFE'}`);
+    
+    // If unsafe, return safety response IMMEDIATELY without vector search or AI
     if (isUnsafe) {
-      console.log(`   Detected keywords: ${detectedKeywords.join(', ')}`);
+      console.log(`🛑 Unsafe query detected - keywords: ${detectedKeywords.join(', ')}`);
+      
+      const safetyResponse = safetyService.generateSafetyResponse(query, detectedConditions);
+      const safetyWarnings = detectedConditions.map(c => c.warning);
+      const responseTime = Date.now() - startTime;
+
+      // Log to MongoDB (without vector search results)
+      const queryLog = new QueryLog({
+        query: query.trim(),
+        retrievedChunks: [],
+        answer: safetyResponse,
+        isUnsafe: true,
+        safetyWarnings,
+        detectedKeywords,
+        model: 'safety-filter',
+        responseTime
+      });
+
+      await queryLog.save();
+      console.log(`💾 Unsafe query logged with ID: ${queryLog._id}`);
+
+      return res.json({
+        success: true,
+        queryId: queryLog._id,
+        answer: safetyResponse,
+        isUnsafe: true,
+        safetyWarnings,
+        detectedKeywords,
+        sources: [],
+        responseTime
+      });
     }
 
-    // Step 2: Retrieve relevant documents from vector store
+    // Step 2: Only for SAFE queries - Retrieve relevant documents from vector store
     console.log('🔍 Searching vector store...');
     const retrievedChunks = await vectorStore.search(query, 5);
     console.log(`   Found ${retrievedChunks.length} relevant documents`);
 
-    // Step 3: Generate appropriate response
-    let answer;
-    let safetyWarnings = [];
-
-    if (isUnsafe) {
-      // STRICT SAFETY MODE: Do not generate AI answer for unsafe queries
-      console.log('🛑 Unsafe query detected - blocking AI generation');
-      
-      const safetyResponse = safetyService.generateSafetyResponse(query, detectedConditions);
-      
-      // Just return the safety warning, no AI generation
-      answer = safetyResponse;
-      
-      safetyWarnings = detectedConditions.map(c => c.warning);
-    } else {
-      // Standard response for safe queries
-      answer = await aiService.generateAnswer(query, retrievedChunks, false);
-    }
+    // Step 3: Generate AI response for safe queries
+    const answer = await aiService.generateAnswer(query, retrievedChunks, false);
 
     const responseTime = Date.now() - startTime;
 
@@ -76,9 +92,9 @@ router.post('/ask', async (req, res) => {
         score: chunk.score
       })),
       answer,
-      isUnsafe,
-      safetyWarnings,
-      detectedKeywords,
+      isUnsafe: false,
+      safetyWarnings: [],
+      detectedKeywords: [],
       model: 'gemini-1.5-flash',
       responseTime
     });
@@ -91,8 +107,8 @@ router.post('/ask', async (req, res) => {
       success: true,
       queryId: queryLog._id,
       answer,
-      isUnsafe,
-      safetyWarnings,
+      isUnsafe: false,
+      safetyWarnings: [],
       sources: retrievedChunks.map(chunk => ({
         id: chunk.id,
         title: chunk.title,
