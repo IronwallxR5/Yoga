@@ -9,11 +9,7 @@ function App() {
   const [response, setResponse] = useState(null);
   const [error, setError] = useState(null);
 
-  const examples = [
-    'Benefits of Surya Namaskar',
-    'How to do Shavasana',
-    'Yoga for back pain',
-  ];
+
 
   const handleSubmit = async (q = query) => {
     if (!q.trim()) return;
@@ -54,21 +50,7 @@ function App() {
     <div className="App">
       {/* Chat Messages Area */}
       <div className="messages-container">
-        {!response && !loading && !error && (
-          <div className="welcome-message">
-            <div className="example-prompts">
-              {examples.map((ex, i) => (
-                <button
-                  key={i}
-                  className="example-prompt"
-                  onClick={() => handleSubmit(ex)}
-                >
-                  {ex}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+
 
         {/* Response */}
         {response && (

@@ -1,47 +1,78 @@
+import { Pinecone } from '@pinecone-database/pinecone';
 import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import embeddingService from './embeddingService.js';
 import queryPreprocessor from './queryPreprocessor.js';
+import dotenv from 'dotenv';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+dotenv.config();
 
 class VectorStore {
   constructor() {
-    this.documents = [];
-    this.embeddings = [];
+    this.client = null;
+    this.index = null;
+    this.indexName = process.env.PINECONE_INDEX || 'yoga-rag';
     this.isInitialized = false;
-    this.vectorStorePath = process.env.VECTOR_STORE_PATH || './vector_store';
   }
 
   async initialize() {
     if (this.isInitialized) {
-      return;
+      return true;
     }
 
     try {
-      // Try to load existing vector store
-      const loaded = await this.loadVectorStore();
-      
-      if (!loaded) {
-        console.log('📦 No existing vector store found. Please run initialization script.');
-        // Don't throw error, just mark as not initialized
-        return false;
+      console.log('🌲 Initializing Pinecone connection...');
+      this.client = new Pinecone({
+        apiKey: process.env.PINECONE_API_KEY
+      });
+
+      // Check if index exists
+      const existingIndexes = await this.client.listIndexes();
+      const indexExists = existingIndexes.indexes?.some(idx => idx.name === this.indexName);
+
+      if (!indexExists) {
+        console.log(`⚠️ Index "${this.indexName}" not found. Creating new serverless index...`);
+        try {
+          await this.client.createIndex({
+            name: this.indexName,
+            dimension: 384, // Xenova/all-MiniLM-L6-v2 dimension
+            metric: 'cosine',
+            spec: { 
+              serverless: { 
+                cloud: 'aws', 
+                region: 'us-east-1' 
+              }
+            }
+          });
+          console.log('✅ Index created successfully. Waiting for initialization...');
+          // Wait a moment for index to be ready
+          await new Promise(resolve => setTimeout(resolve, 10000));
+        } catch (createError) {
+          // If error is "Resource already exists", we can ignore it and proceed
+          if (createError.message?.includes('already exists') || createError.status === 409) {
+            console.log('⚠️ Index already exists (race condition), proceeding...');
+          } else {
+            throw createError;
+          }
+        }
       }
 
+      this.index = this.client.index(this.indexName);
       this.isInitialized = true;
-      console.log(`✅ Vector store loaded with ${this.documents.length} documents`);
+      console.log('✅ Connected to Pinecone index:', this.indexName);
       return true;
     } catch (error) {
-      console.error('Error initializing vector store:', error);
+      console.error('❌ Error initializing Pinecone:', error);
       return false;
     }
   }
 
   async buildVectorStore(knowledgeBasePath) {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+
     try {
-      console.log('🔨 Building vector store from knowledge base...');
+      console.log('🔨 Preparing documents for Pinecone ingestion...');
       
       // Load knowledge base
       const knowledgeData = await fs.readFile(knowledgeBasePath, 'utf-8');
@@ -49,92 +80,59 @@ class VectorStore {
 
       console.log(`📚 Loaded ${knowledgeBase.length} documents from knowledge base`);
 
-      // Prepare documents
-      this.documents = knowledgeBase.map(doc => ({
+      // Prepare documents with embeddings
+      const documents = knowledgeBase.map(doc => ({
         id: doc.id,
-        title: doc.title,
-        source: doc.source,
-        page: doc.page,
-        info: doc.info,
-        precautions: doc.precautions,
-        // Create searchable text combining all fields
-        text: `${doc.title}. ${doc.info} Precautions: ${doc.precautions}`
+        text: `${doc.title}. ${doc.info} Precautions: ${doc.precautions}`,
+        metadata: {
+          title: doc.title,
+          source: doc.source,
+          page: doc.page,
+          info: doc.info, // Original info for display
+          precautions: doc.precautions
+        }
       }));
 
       // Initialize embedding service
       await embeddingService.initialize();
 
-      // Generate embeddings for all documents
-      console.log('🔄 Generating embeddings...');
-      const texts = this.documents.map(doc => doc.text);
-      this.embeddings = await embeddingService.generateBatchEmbeddings(texts);
+      console.log('🔄 Generating embeddings and upserting to Pinecone...');
+      
+      // Batch process to avoid hitting limits
+      const BATCH_SIZE = 50;
+      
+      for (let i = 0; i < documents.length; i += BATCH_SIZE) {
+        const batchDocs = documents.slice(i, i + BATCH_SIZE);
+        const batchTexts = batchDocs.map(d => d.text);
+        
+        // Generate embeddings
+        const embeddings = await embeddingService.generateBatchEmbeddings(batchTexts);
 
-      // Save vector store to disk
-      await this.saveVectorStore();
+        // Prepare vectors for Pinecone
+        const vectors = batchDocs.map((doc, idx) => ({
+          id: doc.id,
+          values: embeddings[idx],
+          metadata: {
+            ...doc.metadata,
+            text: doc.text // Store text for context retrieval
+          }
+        }));
 
-      this.isInitialized = true;
-      console.log('✅ Vector store built and saved successfully');
+        // Upsert to Pinecone
+        await this.index.upsert(vectors);
+        console.log(`✅ Upserted batch ${Math.floor(i / BATCH_SIZE) + 1} (${vectors.length} vectors)`);
+      }
+
+      console.log('✅ Pinecone population complete!');
       
       return {
         success: true,
-        documentsCount: this.documents.length,
-        embeddingDimension: this.embeddings[0].length
+        documentsCount: documents.length
       };
+
     } catch (error) {
       console.error('Error building vector store:', error);
       throw error;
-    }
-  }
-
-  async saveVectorStore() {
-    try {
-      // Create directory if it doesn't exist
-      await fs.mkdir(this.vectorStorePath, { recursive: true });
-
-      // Save documents
-      await fs.writeFile(
-        path.join(this.vectorStorePath, 'documents.json'),
-        JSON.stringify(this.documents, null, 2)
-      );
-
-      // Save embeddings
-      await fs.writeFile(
-        path.join(this.vectorStorePath, 'embeddings.json'),
-        JSON.stringify(this.embeddings, null, 2)
-      );
-
-      console.log('💾 Vector store saved to disk');
-    } catch (error) {
-      console.error('Error saving vector store:', error);
-      throw error;
-    }
-  }
-
-  async loadVectorStore() {
-    try {
-      const documentsPath = path.join(this.vectorStorePath, 'documents.json');
-      const embeddingsPath = path.join(this.vectorStorePath, 'embeddings.json');
-
-      // Check if files exist
-      try {
-        await fs.access(documentsPath);
-        await fs.access(embeddingsPath);
-      } catch {
-        return false;
-      }
-
-      // Load documents
-      const documentsData = await fs.readFile(documentsPath, 'utf-8');
-      this.documents = JSON.parse(documentsData);
-
-      // Load embeddings
-      const embeddingsData = await fs.readFile(embeddingsPath, 'utf-8');
-      this.embeddings = JSON.parse(embeddingsData);
-
-      return true;
-    } catch (error) {
-      console.error('Error loading vector store:', error);
-      return false;
     }
   }
 
@@ -143,40 +141,41 @@ class VectorStore {
       await this.initialize();
     }
 
-    if (!this.isInitialized) {
-      throw new Error('Vector store not initialized. Please run initialization script.');
-    }
-
     try {
-      // Preprocess query for better matching
+      // Preprocess query
       const processedQuery = queryPreprocessor.preprocess(query);
       console.log(`Original query: "${query}"`);
       console.log(`Processed query: "${processedQuery}"`);
 
-      // Generate embedding for the processed query
+      // Generate embedding
       const queryEmbedding = await embeddingService.generateEmbedding(processedQuery);
 
-      // Calculate similarity scores
-      const scores = this.embeddings.map((docEmbedding, index) => ({
-        index,
-        score: embeddingService.cosineSimilarity(queryEmbedding, docEmbedding)
-      }));
-
-      // Sort by score (descending) and get top K
-      scores.sort((a, b) => b.score - a.score);
-      const topResults = scores.slice(0, topK);
-
-      // Log retrieval results
-      console.log(`Top ${topK} results:`);
-      topResults.forEach((result, i) => {
-        console.log(`  ${i + 1}. ${this.documents[result.index].title} (score: ${result.score.toFixed(3)})`);
+      // Query Pinecone
+      const queryResponse = await this.index.query({
+        vector: queryEmbedding,
+        topK,
+        includeMetadata: true
       });
 
-      // Return documents with scores
-      return topResults.map(result => ({
-        ...this.documents[result.index],
-        score: result.score
-      }));
+      // Format results
+      console.log(`Top ${topK} results:`);
+      const results = queryResponse.matches.map((match, i) => {
+        console.log(`  ${i + 1}. ${match.metadata.title} (score: ${match.score.toFixed(3)})`);
+        return {
+          id: match.id,
+          score: match.score,
+          // Unpack metadata fields
+          title: match.metadata.title,
+          source: match.metadata.source,
+          page: match.metadata.page,
+          info: match.metadata.info,
+          precautions: match.metadata.precautions,
+          text: match.metadata.text
+        };
+      });
+
+      return results;
+
     } catch (error) {
       console.error('Error searching vector store:', error);
       throw error;

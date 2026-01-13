@@ -27,10 +27,14 @@
   min-height: 60vh;
 }
 
-.example-prompts {
-  display: grid;
-  gap: 12px;
-  max-width: 600px;
+.welcome-text h2 {
+  font-family: 'Quicksand', sans-serif;
+  color: #6b9080;
+  font-weight: 600;
+  font-size: 1.8rem;
+  text-align: center;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .example-prompt {
