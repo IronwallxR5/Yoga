@@ -69,7 +69,7 @@ The system implements a comprehensive safety layer that detects and handles quer
 - **Database**: MongoDB (for query logging and analytics)
 - **Vector Store**: Custom implementation using @xenova/transformers
 - **Embeddings**: Xenova/all-MiniLM-L6-v2 (384-dimensional vectors)
-- **AI Model**: OpenAI GPT-3.5-turbo (with fallback mode)
+- **AI Model**: Google Gemini 1.5 Flash (with fallback)
 
 ### Frontend
 - **Framework**: React 18.2.0
@@ -82,7 +82,7 @@ The system implements a comprehensive safety layer that detects and handles quer
 {
   "@xenova/transformers": "^2.17.1",  // Local embedding generation
   "mongoose": "^8.1.1",                 // MongoDB ODM
-  "openai": "^4.28.0",                  // AI response generation
+  "@google/generative-ai": "^0.2.0",    // Google Gemini API
   "express": "^4.18.2",                 // Backend framework
   "react": "^18.2.0"                    // Frontend framework
 }
@@ -105,7 +105,7 @@ graph TD
     Vector -->|Search| Pinecone[(🌲 Pinecone DB)]
     Pinecone -->|Return Top 5| Context[📄 Build Context]
     
-    Context -->|Prompt| LLM[🤖 OpenAI GPT-3.5]
+    Context -->|Prompt| LLM[🤖 Google Gemini]
     LLM -->|Response| Log[💾 MongoDB Logging]
     Warning --> Log
     
@@ -119,9 +119,9 @@ graph TD
 | 1. Input Validation | Safety Middlewarw | ~30ms |
 | 2. Embedding Gen | Transformers.js (Local) | ~400-500ms |
 | 3. Vector Search | Pinecone (Serverless) | ~100-200ms |
-| 4. AI Generation | GPT-3.5 Turbo | ~800-1500ms |
+| 4. AI Generation | Google Gemini 1.5 Flash | ~500-1200ms |
 | 5. Analytics Log | MongoDB Atlas | ~100ms |
-| **Total Latency** | **End-to-End** | **~1.5 - 2.5s** |
+| **Total Latency** | **End-to-End** | **~1.2 - 2.0s** |
 
 ## 🛠️ Tech Stack
 
@@ -129,7 +129,7 @@ graph TD
 |-----------|------------|---------|
 | **Vector DB** | 🌲 Pinecone | Scalable cloud vector storage (384d) |
 | **Embeddings** | ⚡ Transformers.js | Free, local privacy-first generation |
-| **LLM** | 🧠 OpenAI GPT-3.5 | Robust answer generation |
+| **LLM** | 🧠 Google Gemini | Low-latency, high-quality answers |
 | **Database** | 🍃 MongoDB | Analytics & audit logging |
 | **Backend** | 🟢 Node.js + Express | REST API & logic layer |
 | **Frontend** | ⚛️ React 18 | Modern, responsive chat UI |
@@ -167,7 +167,7 @@ Mutilated for educational purposes.
 ### Prerequisites
 - Node.js v18+ and npm
 - MongoDB (local or Atlas)
-- (Optional) OpenAI API key
+- Google Gemini API Key
 
 ### Step 1: Install Dependencies
 
@@ -193,8 +193,8 @@ MONGODB_URI=mongodb://localhost:27017/yoga-rag
 PORT=5001
 NODE_ENV=development
 
-# OpenAI API Key (Optional - has fallback mode)
-OPENAI_API_KEY=your_openai_api_key_here
+# Google Gemini API Key
+GEMINI_API_KEY=your_gemini_api_key_here
 
 # CORS Settings
 FRONTEND_URL=http://localhost:3000
@@ -445,7 +445,7 @@ Detailed safety rules are in `backend/src/services/safetyService.js`.
   isUnsafe: Boolean,                // Safety flag
   safetyWarnings: [String],         // Warning messages shown
   detectedKeywords: [String],       // Keywords that triggered safety
-  model: String,                    // AI model used (e.g., "gpt-3.5-turbo")
+  model: String,                    // AI model used (e.g., "gemini-1.5-flash")
   responseTime: Number,             // Milliseconds
   feedback: {
     helpful: Boolean,
@@ -598,7 +598,7 @@ brew services start mongodb-community
 cd backend && npm run init-embeddings
 ```
 
-**Issue**: OpenAI API errors
+**Issue**: Google Gemini API errors
 ```bash
 # Solution: System automatically uses fallback mode
 # Fallback returns excerpts from knowledge base
