@@ -105,16 +105,16 @@
 }
 
 .safety-warning {
-  background: #fff8e1;
-  border-left: 4px solid #f39c12;
+  background: #fdfbf7;
+  border-left: 4px solid #D2B48C;
   border-radius: 8px;
   overflow: hidden;
   margin-bottom: 16px;
-  box-shadow: 0 2px 8px rgba(243, 156, 18, 0.1);
+  box-shadow: 0 2px 8px rgba(210, 180, 140, 0.2);
 }
 
 .warning-header {
-  background: #f39c12;
+  background: #D2B48C;
   color: white;
   padding: 12px 20px;
   font-weight: 700;
@@ -124,7 +124,7 @@
 
 .warning-content {
   padding: 20px;
-  color: #7f5516;
+  color: #5d4037;
 }
 
 .sources-section {
