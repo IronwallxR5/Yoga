@@ -14,7 +14,7 @@ async function initializeEmbeddings() {
     console.log('=' .repeat(60));
     
     // Path to knowledge base
-    const knowledgeBasePath = path.join(__dirname, '../../..', 'yoga_knowledge.json');
+    const knowledgeBasePath = path.join(__dirname, '../../../resources', 'yoga_knowledge.json');
     console.log(`📂 Knowledge base path: ${knowledgeBasePath}\n`);
 
     // Build vector store

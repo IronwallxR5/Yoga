@@ -519,7 +519,12 @@ See [AI_PROMPTS.md](./AI_PROMPTS.md) for complete prompt history.
 
 ## 📊 Project Statistics
 
-- **Knowledge Base**: 100 articles, ~123KB
+-#### 1. **Document Chunking**
+- **Input**: 100 yoga articles from `resources/yoga_knowledge.json`
+- **Chunk Strategy**: Each article is a single chunk (not split further)
+- **Chunk Content**: Title + Info + Precautions combined into searchable text
+- **Knowledge Base**: 100 articles, ~123KB (`resources/yoga_knowledge.json`)
+- **Source Material**: `resources/Common Yoga Protocol Book-English.pdf`
 - **Code Files**: 20+ files across frontend/backend
 - **Total Dependencies**: 221 backend + 1604 frontend packages
 - **Vector Store Size**: 100 documents × 384 dimensions = 38,400 values
