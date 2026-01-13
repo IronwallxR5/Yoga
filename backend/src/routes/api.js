@@ -6,6 +6,62 @@ import QueryLog from '../models/QueryLog.js';
 
 const router = express.Router();
 
+// Yoga-related keywords to check if query is relevant
+const yogaKeywords = [
+  'yoga', 'asana', 'pose', 'posture', 'pranayama', 'breathing', 'breath',
+  'meditation', 'stretch', 'flexibility', 'mindfulness', 'relaxation',
+  'surya', 'namaskar', 'sun salutation', 'shavasana', 'corpse pose',
+  'warrior', 'downward', 'upward', 'cobra', 'child pose', 'tree pose',
+  'balance', 'core', 'spine', 'back pain', 'stress', 'anxiety', 'sleep',
+  'chakra', 'mudra', 'mantra', 'bandha', 'kriya', 'dhyana', 'samadhi',
+  'vinyasa', 'hatha', 'ashtanga', 'iyengar', 'kundalini', 'bikram',
+  'beginner', 'advanced', 'morning', 'evening', 'routine', 'practice',
+  'exercise', 'workout', 'fitness', 'health', 'wellness', 'body', 'mind',
+  'headstand', 'handstand', 'inversion', 'backbend', 'forward bend', 'twist',
+  'hip opener', 'shoulder', 'neck', 'leg', 'arm', 'strengthen', 'tone',
+  'weight loss', 'digestion', 'immunity', 'energy', 'calm', 'focus',
+  'prana', 'nadi', 'sutra', 'patanjali', 'ayurveda', 'holistic'
+];
+
+// Off-topic patterns (greetings, general chat, etc.)
+const offTopicPatterns = [
+  /^(hi|hello|hey|howdy|greetings|good morning|good afternoon|good evening)[\s!?.]*$/i,
+  /^how are you/i,
+  /^what('s| is) your name/i,
+  /^who are you/i,
+  /^what can you do/i,
+  /^tell me (about yourself|a joke)/i,
+  /^(thanks|thank you|bye|goodbye|see you)/i,
+  /^(ok|okay|yes|no|sure|alright)[\s!?.]*$/i
+];
+
+// Check if query is yoga-related
+function isYogaRelated(query) {
+  const queryLower = query.toLowerCase();
+  
+  // Check if matches off-topic patterns
+  for (const pattern of offTopicPatterns) {
+    if (pattern.test(query.trim())) {
+      return false;
+    }
+  }
+  
+  // Check if contains any yoga-related keywords
+  for (const keyword of yogaKeywords) {
+    if (queryLower.includes(keyword)) {
+      return true;
+    }
+  }
+  
+  // If query is very short and doesn't contain yoga keywords, likely off-topic
+  if (query.trim().split(/\s+/).length <= 3) {
+    return false;
+  }
+  
+  // Default: assume it might be yoga-related for longer queries
+  return true;
+}
+
 // POST /api/ask - Main endpoint for asking yoga questions
 router.post('/ask', async (req, res) => {
   const startTime = Date.now();
@@ -29,6 +85,39 @@ router.post('/ask', async (req, res) => {
     }
 
     console.log(`📝 Received query: "${query}"`);
+
+    // Step 0: Check if query is yoga-related
+    if (!isYogaRelated(query)) {
+      console.log(`💬 Off-topic query detected: "${query}"`);
+      const responseTime = Date.now() - startTime;
+      
+      const offTopicResponse = `🙏 Namaste! I'm a yoga assistant and I can only help with yoga-related questions.
+
+**I can help you with:**
+• Yoga poses (asanas) and their benefits
+• Breathing techniques (pranayama)
+• Meditation practices
+• Yoga for specific health goals (stress relief, flexibility, strength)
+• Beginner to advanced yoga guidance
+• Yoga philosophy and traditions
+
+**Try asking something like:**
+• "What are the benefits of Surya Namaskar?"
+• "How do I do a headstand safely?"
+• "What breathing exercises help with anxiety?"
+• "Yoga poses for back pain"
+
+Please ask me a yoga-related question and I'll be happy to help! 🧘`;
+
+      return res.json({
+        success: true,
+        answer: offTopicResponse,
+        isUnsafe: false,
+        isOffTopic: true,
+        sources: [],
+        responseTime
+      });
+    }
 
     // Step 1: Safety Detection - Check FIRST before any processing
     const safetyCheck = safetyService.detectUnsafeConditions(query);
