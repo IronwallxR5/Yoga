@@ -487,7 +487,7 @@ A comprehensive 2-5 minute demo video is available showing:
 
 ## 🤖 AI Tools Used
 
-This project was developed with assistance from AI tools.
+This project was developed with assistance from AI tools. All prompts used are documented in [AI_PROMPTS.md](./AI_PROMPTS.md).
 
 ### Primary Tool
 - **Google Gemini 2.0 Flash (Thinking - Experimental)** via Antigravity IDE
@@ -499,6 +499,8 @@ This project was developed with assistance from AI tools.
 4. **Frontend Development** - React components and styling
 5. **Documentation** - README and technical docs
 6. **Testing** - Test queries and validation scripts
+
+See [AI_PROMPTS.md](./AI_PROMPTS.md) for complete prompt history.
 
 ## 📊 Project Statistics
 
