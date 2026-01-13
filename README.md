@@ -151,7 +151,7 @@ The interface was custom-designed with a psychological focus on calmness (Sage G
 ## 👤 Author
 
 **Padam Rathi**  
-*Full Stack Developer & AI Engineer*  
+  
 
 
 

@@ -1,4 +1,4 @@
-# 🤖 Agentic AI Development Log & Prompt History
+# 🤖 AI Development Log & Prompt History
 
 This document serves as a comprehensive record of the **Chain-of-Thought (CoT)** prompts and **Agentic Instructions** used to engineer the Yoga RAG Micro-App. 
 
