@@ -42,6 +42,7 @@ The application implements:
 - ✅ **Source Attribution**: Every answer shows which articles were used
 - ✅ **Safety Warnings**: Automatically detects risky queries and provides cautious guidance
 - ✅ **Real-time Processing**: Fast response times with vector similarity search
+- ✅ **Zen Visual Theme**: Calming Sage Green and Tan palette for a stress-free experience
 - ✅ **User Feedback**: Thumbs up/down to rate answer helpfulness
 
 ### Safety Features (Mandatory Requirement)
@@ -74,7 +75,7 @@ The system implements a comprehensive safety layer that detects and handles quer
 - **Framework**: React 18.2.0
 - **HTTP Client**: Axios
 - **Markdown Rendering**: react-markdown
-- **Styling**: Vanilla CSS with animations
+- **Styling**: Vanilla CSS with "Zen + Yoga" theme (Sage Green/Tan palette)
 
 ### Key Dependencies
 ```json
@@ -191,6 +192,13 @@ FRONTEND_URL=http://localhost:3000
 VECTOR_STORE_PATH=./vector_store
 EMBEDDING_MODEL=Xenova/all-MiniLM-L6-v2
 ```
+
+Create `frontend/.env`:
+
+```env
+REACT_APP_API_URL=http://localhost:5001
+```
+
 
 ### Step 3: Start MongoDB
 
@@ -479,7 +487,7 @@ A comprehensive 2-5 minute demo video is available showing:
 
 ## 🤖 AI Tools Used
 
-This project was developed with assistance from AI tools. All prompts used are documented in [AI_PROMPTS.md](./AI_PROMPTS.md).
+This project was developed with assistance from AI tools.
 
 ### Primary Tool
 - **Google Gemini 2.0 Flash (Thinking - Experimental)** via Antigravity IDE
@@ -491,8 +499,6 @@ This project was developed with assistance from AI tools. All prompts used are d
 4. **Frontend Development** - React components and styling
 5. **Documentation** - README and technical docs
 6. **Testing** - Test queries and validation scripts
-
-See [AI_PROMPTS.md](./AI_PROMPTS.md) for complete prompt history.
 
 ## 📊 Project Statistics
 
