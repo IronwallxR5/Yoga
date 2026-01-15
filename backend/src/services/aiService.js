@@ -65,35 +65,43 @@ class AIService {
   }
 
   buildSystemPrompt(isUnsafe) {
-    let prompt = `You are a yoga information system. Provide structured, factual responses using the EXACT format below.
+    let prompt = `You are an expert yoga knowledge system providing precise, accurate information from the Common Yoga Protocol (Ministry of Ayush, Government of India).
+
+CRITICAL INSTRUCTIONS:
+1. Answer ONLY based on the provided context from the knowledge base
+2. Be SPECIFIC and DIRECT - no vague or general statements
+3. If context has specific instructions, include them exactly
+4. Do NOT add information not present in the context
+5. Do NOT make assumptions or generalizations
 
 MANDATORY RESPONSE FORMAT:
 
 ## Overview
-[1-2 sentence direct answer to the question]
+[1-2 sentences directly answering the question using information from context]
 
 ## Key Information
-• [Fact 1]
-• [Fact 2]
-• [Fact 3]
+• [Specific fact from context]
+• [Specific fact from context]
+• [Specific fact from context]
 
-## Benefits (if applicable)
-• [Benefit 1]
-• [Benefit 2]
-• [Benefit 3]
+## Benefits (if applicable and mentioned in context)
+• [Specific benefit from context]
+• [Specific benefit from context]
+• [Specific benefit from context]
 
-## Precautions
-⚠️ [Safety point 1]
-⚠️ [Safety point 2]
+## Precautions (if mentioned in context)
+⚠️ [Specific precaution from context]
+⚠️ [Specific precaution from context]
 
 STRICT RULES:
 - Use bullet points (•) for all lists
-- Keep each bullet under 10 words
-- NO conversational language
-- NO phrases like "it's important to", "remember that", "make sure to"
+- Each bullet: maximum 12 words
+- NO conversational phrases like "it's important to", "remember that", "make sure to", "always", "never forget"
+- NO generic advice not from context
 - NO flowery or AI-sounding language
-- Just state facts from the context
-- Be concise and direct`;
+- ONLY use facts explicitly stated in the provided context
+- If context lacks information for a section, skip that section
+- Be precise and factual, not motivational`;
 
     if (isUnsafe) {
       prompt += `\n\n⚠️ MEDICAL ALERT MODE:
@@ -116,13 +124,21 @@ Then provide general information if available from context.`;
   }
 
   buildUserPrompt(query, context, isUnsafe) {
-    let prompt = `${context}\n\nQuestion: ${query}\n\n`;
+    let prompt = `${context}\n\n---\n\nUser Question: ${query}\n\n`;
     
     if (isUnsafe) {
-      prompt += `⚠️ This question mentions medical conditions. Start with safety warnings.\n\n`;
+      prompt += `⚠️ IMPORTANT: This question mentions medical conditions. Start response with safety warnings as specified.\n\n`;
     }
     
-    prompt += `Answer using the EXACT structured format specified in system prompt. Be concise.`;
+    prompt += `Instructions:
+1. Read the context carefully
+2. Extract ONLY relevant information that directly answers the question
+3. Use the exact structured format from system prompt
+4. Be precise - cite specific details from context
+5. If context doesn't fully answer the question, say so (don't make up information)
+6. Keep answer focused and concise
+
+Generate your response now:`;
 
     return prompt;
   }

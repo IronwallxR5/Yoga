@@ -1,7 +1,8 @@
 import express from 'express';
 import vectorStore from '../services/vectorStore.js';
-import safetyService from '../services/safetyService.js';
 import aiService from '../services/aiService.js';
+import unifiedQueryReviewer from '../services/unifiedQueryReviewer.js';
+import safetyService from '../services/safetyService.js';
 import QueryLog from '../models/QueryLog.js';
 
 const router = express.Router();
@@ -86,65 +87,136 @@ router.post('/ask', async (req, res) => {
 
     console.log(`📝 Received query: "${query}"`);
 
-    // Step 0: Check if query is yoga-related
-    if (!isYogaRelated(query)) {
-      console.log(`💬 Off-topic query detected: "${query}"`);
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`🔍 STEP 1: UNIFIED LLM REVIEW`);
+    console.log(`${'='.repeat(80)}`);
+
+    // STEP 1: Unified LLM Review - Check EVERYTHING in one go
+    const review = await unifiedQueryReviewer.reviewQuery(query);
+
+    // STEP 1A: Handle GREETING
+    if (review.intent === 'greeting') {
+      console.log(`\n💬 RESULT: Greeting detected - Sending welcome message`);
       const responseTime = Date.now() - startTime;
       
-      const offTopicResponse = `🙏 Namaste! I'm a yoga assistant and I can only help with yoga-related questions.
+      const greetingResponse = `🙏 **Namaste!** 
+
+I'm your Yoga AI Assistant. I'm here to help you with all things yoga!
 
 **I can help you with:**
 • Yoga poses (asanas) and their benefits
-• Breathing techniques (pranayama)
-• Meditation practices
-• Yoga for specific health goals (stress relief, flexibility, strength)
-• Beginner to advanced yoga guidance
-• Yoga philosophy and traditions
+• Breathing techniques (pranayama)  
+• Meditation and mindfulness practices
+• Yoga for specific health goals (back pain, stress relief, flexibility)
+• Different yoga styles (Hatha, Vinyasa, Ashtanga, etc.)
+• Yoga philosophy and spiritual practices
 
-**Try asking something like:**
+**Try asking:**
 • "What are the benefits of Surya Namaskar?"
 • "How do I do a headstand safely?"
-• "What breathing exercises help with anxiety?"
-• "Yoga poses for back pain"
+• "Yoga poses for lower back pain"
+• "Breathing exercises for anxiety"
 
-Please ask me a yoga-related question and I'll be happy to help! 🧘`;
+What would you like to know about yoga? 🧘‍♀️`;
+
+      // Log greeting
+      const logEntry = new QueryLog({
+        query,
+        answer: greetingResponse,
+        sources: [],
+        isUnsafe: false,
+        isOffTopic: true,
+        detectedKeywords: ['greeting'],
+        responseTime,
+        timestamp: new Date()
+      });
+      await logEntry.save();
+
+      return res.json({
+        success: true,
+        answer: greetingResponse,
+        isUnsafe: false,
+        isOffTopic: true,
+        review: { intent: 'greeting' },
+        sources: [],
+        responseTime
+      });
+    }
+
+    // STEP 1B: Handle OFF-TOPIC
+    if (review.intent === 'off_topic') {
+      console.log(`\n❌ RESULT: Off-topic query - Not yoga-related`);
+      const responseTime = Date.now() - startTime;
+      
+      const offTopicResponse = `🙏 **I'm specialized in Yoga!**
+
+Your question doesn't appear to be about yoga. 
+
+${review.reason}
+
+I'm designed specifically to answer yoga-related questions. I can help with:
+• Yoga poses and techniques
+• Breathing exercises (pranayama)
+• Meditation practices
+• Health benefits of yoga
+• Yoga for specific conditions
+• Yoga philosophy and traditions
+
+**Please ask me something related to yoga, and I'll be happy to help!** 🧘`;
+
+      // Log off-topic query
+      const logEntry = new QueryLog({
+        query,
+        answer: offTopicResponse,
+        sources: [],
+        isUnsafe: false,
+        isOffTopic: true,
+        detectedKeywords: ['off_topic'],
+        responseTime,
+        timestamp: new Date()
+      });
+      await logEntry.save();
 
       return res.json({
         success: true,
         answer: offTopicResponse,
         isUnsafe: false,
         isOffTopic: true,
+        review: { intent: 'off_topic', reason: review.reason },
         sources: [],
         responseTime
       });
     }
 
-    // Step 1: Safety Detection - Check FIRST before any processing
-    const safetyCheck = safetyService.detectUnsafeConditions(query);
-    const { isUnsafe, detectedConditions, detectedKeywords } = safetyCheck;
-
-    console.log(`🔒 Safety check: ${isUnsafe ? 'UNSAFE' : 'SAFE'}`);
-    
-    // If unsafe, return safety response IMMEDIATELY without vector search or AI
-    if (isUnsafe) {
-      console.log(`🛑 Unsafe query detected - keywords: ${detectedKeywords.join(', ')}`);
+    // STEP 1C: Handle MEDICAL/UNSAFE queries
+    if (review.isUnsafe && review.intent === 'medical_query') {
+      console.log(`\n⚠️ RESULT: Medical condition detected - Returning safety warning`);
+      console.log(`   Detected conditions: ${review.detectedMedicalConditions.join(', ')}`);
       
+      // Map detected conditions to detailed safety rules
+      const detectedConditions = [];
+      for (const condition of review.detectedMedicalConditions) {
+        // Find matching safety rule from safetyService
+        const rule = safetyService.safetyRules.find(r => r.category === condition);
+        if (rule) {
+          detectedConditions.push(rule);
+        }
+      }
+
       const safetyResponse = safetyService.generateSafetyResponse(query, detectedConditions);
-      const safetyWarnings = detectedConditions.map(c => c.warning);
       const responseTime = Date.now() - startTime;
 
-      // Log to MongoDB (without vector search results)
+      // Log unsafe query
       const queryLog = new QueryLog({
         query: query.trim(),
         retrievedChunks: [],
         answer: safetyResponse,
         isUnsafe: true,
-        safetyWarnings,
-        detectedKeywords,
+        safetyWarnings: detectedConditions.map(c => c.warning),
+        detectedKeywords: review.detectedMedicalConditions,
         model: 'safety-filter',
         responseTime
       });
-
       await queryLog.save();
       console.log(`💾 Unsafe query logged with ID: ${queryLog._id}`);
 
@@ -153,15 +225,23 @@ Please ask me a yoga-related question and I'll be happy to help! 🧘`;
         queryId: queryLog._id,
         answer: safetyResponse,
         isUnsafe: true,
-        safetyWarnings,
-        detectedKeywords,
+        safetyWarnings: detectedConditions.map(c => c.warning),
+        detectedKeywords: review.detectedMedicalConditions,
+        review: { intent: 'medical_query', conditions: review.detectedMedicalConditions },
         sources: [],
         responseTime
       });
     }
 
-    // Step 2: Only for SAFE queries - Retrieve relevant documents from vector store
-    console.log('🔍 Searching vector store...');
+    // STEP 1D: Query APPROVED - Proceed to RAG Pipeline
+    console.log(`\n✅ RESULT: Safe yoga question - Proceeding to RAG pipeline`);
+    console.log(`   Confidence: ${(review.confidence * 100).toFixed(0)}%`);
+
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`🔍 STEP 2: RAG PIPELINE - VECTOR SEARCH`);
+    console.log(`${'='.repeat(80)}`);
+
+    // STEP 2: Retrieve relevant documents from vector store
     const retrievedChunks = await vectorStore.search(query, 5);
     console.log(`   Found ${retrievedChunks.length} relevant documents`);
 
@@ -170,7 +250,13 @@ Please ask me a yoga-related question and I'll be happy to help! 🧘`;
 
     const responseTime = Date.now() - startTime;
 
-    // Step 4: Log to MongoDB
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`📊 FINAL RESULTS`);
+    console.log(`${'='.repeat(80)}`);
+    console.log(`   Total time: ${responseTime}ms`);
+    console.log(`   Sources found: ${retrievedChunks.length}`);
+
+    // STEP 4: Log to MongoDB
     const queryLog = new QueryLog({
       query: query.trim(),
       retrievedChunks: retrievedChunks.map(chunk => ({
@@ -191,12 +277,14 @@ Please ask me a yoga-related question and I'll be happy to help! 🧘`;
     await queryLog.save();
     console.log(`💾 Query logged with ID: ${queryLog._id}`);
 
-    // Step 5: Send response
+    // STEP 5: Send response
     res.json({
       success: true,
       queryId: queryLog._id,
       answer,
       isUnsafe: false,
+      isOffTopic: false,
+      review: { intent: 'yoga_question', confidence: review.confidence },
       safetyWarnings: [],
       sources: retrievedChunks.map(chunk => ({
         id: chunk.id,
@@ -208,6 +296,7 @@ Please ask me a yoga-related question and I'll be happy to help! 🧘`;
       responseTime
     });
 
+    console.log(`\n✅ Response sent successfully\n`);
   } catch (error) {
     console.error('❌ Error in /ask endpoint:', error);
     
