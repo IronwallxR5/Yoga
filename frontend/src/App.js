@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import './App.css';
@@ -8,6 +8,16 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState(null);
   const [error, setError] = useState(null);
+  const [showColdStartWarning, setShowColdStartWarning] = useState(false);
+
+  useEffect(() => {
+    // Check if user has visited before
+    const hasVisited = localStorage.getItem('hasVisitedYogaApp');
+    if (!hasVisited) {
+      setShowColdStartWarning(true);
+      localStorage.setItem('hasVisitedYogaApp', 'true');
+    }
+  }, []);
 
 
 
@@ -48,6 +58,34 @@ function App() {
 
   return (
     <div className="App">
+      {/* Cold Start Warning Popup */}
+      {showColdStartWarning && (
+        <div className="modal-overlay" onClick={() => setShowColdStartWarning(false)}>
+          <div className="cold-start-popup" onClick={(e) => e.stopPropagation()}>
+            <div className="popup-header">
+              <span className="popup-icon">⚠️</span>
+              <h3>First-Time Visitor Notice</h3>
+            </div>
+            <div className="popup-body">
+              <p>
+                <strong>⏱️ Please Note:</strong> The first response may take <strong>1-2 minutes</strong> as the server wakes up from sleep.
+              </p>
+              <p className="popup-detail">
+                This application is deployed on Render's free tier, which automatically sleeps after periods of inactivity. Subsequent responses will be fast (1-2 seconds).
+              </p>
+            </div>
+            <div className="popup-footer">
+              <button 
+                className="popup-button"
+                onClick={() => setShowColdStartWarning(false)}
+              >
+                Got it!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Chat Messages Area */}
       <div className="messages-container">
 
