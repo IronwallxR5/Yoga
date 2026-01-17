@@ -187,6 +187,26 @@
   box-shadow: 0 4px 12px rgba(107, 144, 128, 0.15);
 }
 
+/* User Message Bubble */
+.user-message {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+}
+
+.user-message-content {
+  background: linear-gradient(135deg, #6b9080 0%, #5a7a6c 100%);
+  color: white;
+  padding: 14px 20px;
+  border-radius: 16px 16px 0 16px;
+  max-width: 70%;
+  box-shadow: 0 2px 10px rgba(107, 144, 128, 0.3);
+  font-size: 1rem;
+  line-height: 1.5;
+  word-wrap: break-word;
+  font-family: 'Lato', sans-serif;
+}
+
 .message-group {
   background: transparent;
   padding: 0;

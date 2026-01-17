@@ -9,6 +9,7 @@ function App() {
   const [response, setResponse] = useState(null);
   const [error, setError] = useState(null);
   const [showColdStartWarning, setShowColdStartWarning] = useState(false);
+  const [messages, setMessages] = useState([]); // Store all conversation messages
 
   useEffect(() => {
     // Check if user has visited before
@@ -24,6 +25,10 @@ function App() {
   const handleSubmit = async (q = query) => {
     if (!q.trim()) return;
 
+    // Add user message to history immediately
+    const userMessage = { type: 'user', content: q, timestamp: Date.now() };
+    setMessages(prev => [...prev, userMessage]);
+
     setLoading(true);
     setError(null);
     setResponse(null);
@@ -33,6 +38,16 @@ function App() {
 
     try {
       const result = await axios.post(`${apiUrl}/api/ask`, { query: q });
+      
+      // Add assistant response to history
+      const assistantMessage = {
+        type: 'assistant',
+        content: result.data.answer,
+        data: result.data,
+        timestamp: Date.now()
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+      
       setResponse(result.data);
       setQuery(''); // Clear input after submission
     } catch (err) {
@@ -42,16 +57,19 @@ function App() {
     }
   };
 
-  const handleFeedback = async (helpful) => {
-    if (!response?.queryId) {
+  const handleFeedback = async (helpful, messageIndex) => {
+    const message = messages[messageIndex];
+    const queryId = message?.data?.queryId;
+    
+    if (!queryId) {
       alert('Error: Query ID not found. Please try asking a new question.');
-      console.error('No queryId in response:', response);
+      console.error('No queryId in message:', message);
       return;
     }
     const apiUrl = process.env.REACT_APP_API_URL || '';
     try {
       const result = await axios.post(`${apiUrl}/api/feedback`, {
-        queryId: response.queryId,
+        queryId: queryId,
         helpful
       });
       alert('Thank you for your feedback!');
@@ -95,10 +113,64 @@ function App() {
 
       {/* Chat Messages Area */}
       <div className="messages-container">
+        {/* Display all messages */}
+        {messages.map((message, index) => (
+          <div key={index}>
+            {message.type === 'user' ? (
+              <div className="user-message">
+                <div className="user-message-content">{message.content}</div>
+              </div>
+            ) : (
+              <div className="message-group">
+                {/* Safety Warning */}
+                {message.data?.isUnsafe && (
+                  <div className="safety-warning">
+                    <div className="warning-header">⚠️ SAFETY NOTICE</div>
+                    <div className="warning-content">
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    </div>
+                  </div>
+                )}
 
+                {/* Normal Answer */}
+                {!message.data?.isUnsafe && (
+                  <div className="answer-message">
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                    <div className="response-footer">
+                      <span className="response-time">{message.data?.responseTime}ms</span>
+                    </div>
+                  </div>
+                )}
 
-        {/* Response */}
-        {response && (
+                {/* Sources */}
+                {message.data?.sources && message.data.sources.length > 0 && (
+                  <div className="sources-section">
+                    <div className="sources-header">📚 Sources</div>
+                    {message.data.sources.map((src, i) => (
+                      <div key={i} className="source-item">
+                        <div className="source-title">{src.title}</div>
+                        <div className="source-meta">
+                          {src.source.split('-')[0].trim()} • Page {src.page} • {(src.score * 100).toFixed(0)}%
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Feedback */}
+                {!message.data?.isUnsafe && (
+                  <div className="feedback-row">
+                    <button onClick={() => handleFeedback(true, index)}>👍</button>
+                    <button onClick={() => handleFeedback(false, index)}>👎</button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+
+        {/* Response - keep for backwards compatibility during transition */}
+        {response && messages.length === 0 && (
           <div className="message-group">
             {/* Safety Warning */}
             {response.isUnsafe && (
@@ -138,8 +210,8 @@ function App() {
             {/* Feedback */}
             {!response.isUnsafe && (
               <div className="feedback-row">
-                <button onClick={() => handleFeedback(true)}>👍</button>
-                <button onClick={() => handleFeedback(false)}>👎</button>
+                <button onClick={() => handleFeedback(true, messages.length - 1)}>👍</button>
+                <button onClick={() => handleFeedback(false, messages.length - 1)}>👎</button>
               </div>
             )}
           </div>
