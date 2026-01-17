@@ -134,6 +134,7 @@ What would you like to know about yoga? 🧘‍♀️`;
 
       return res.json({
         success: true,
+        queryId: logEntry._id,
         answer: greetingResponse,
         isUnsafe: false,
         isOffTopic: true,
@@ -179,6 +180,7 @@ I'm designed specifically to answer yoga-related questions. I can help with:
 
       return res.json({
         success: true,
+        queryId: logEntry._id,
         answer: offTopicResponse,
         isUnsafe: false,
         isOffTopic: true,

@@ -43,16 +43,23 @@ function App() {
   };
 
   const handleFeedback = async (helpful) => {
-    if (!response?.queryId) return;
+    if (!response?.queryId) {
+      alert('Error: Query ID not found. Please try asking a new question.');
+      console.error('No queryId in response:', response);
+      return;
+    }
     const apiUrl = process.env.REACT_APP_API_URL || '';
     try {
-      await axios.post(`${apiUrl}/api/feedback`, {
+      const result = await axios.post(`${apiUrl}/api/feedback`, {
         queryId: response.queryId,
         helpful
       });
       alert('Thank you for your feedback!');
+      console.log('Feedback submitted successfully:', result.data);
     } catch (err) {
       console.error('Feedback error:', err);
+      console.error('Error details:', err.response?.data || err.message);
+      alert(`Failed to submit feedback: ${err.response?.data?.error || err.message}`);
     }
   };
 
