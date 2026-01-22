@@ -4,6 +4,8 @@
 
 🧘 **AI-Powered Yoga Assistant with Safety-First Recommendations** 🧘
 
+*Your intelligent companion for yoga guidance and practice*
+
 [![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![Express.js](https://img.shields.io/badge/Express.js-000000?style=flat&logo=express&logoColor=white)](https://expressjs.com/)
 [![React](https://img.shields.io/badge/React-61DAFB?style=flat&logo=react&logoColor=black)](https://reactjs.org/)
