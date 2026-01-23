@@ -38,6 +38,8 @@
 
 This is a full-stack **RAG (Retrieval-Augmented Generation)** application that provides intelligent answers to yoga-related questions using a knowledge base of 100+ articles from the **Common Yoga Protocol** by the Ministry of Ayush, Government of India.
 
+**Built with modern AI technologies for accurate and safe yoga guidance.**
+
 The application implements:
 - **Unified Query Review**: Single LLM checks topic, safety, and intent before processing
 - **RAG Pipeline**: Semantic search using embeddings to find relevant context
