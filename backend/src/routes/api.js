@@ -3,9 +3,27 @@ import vectorStore from '../services/vectorStore.js';
 import aiService from '../services/aiService.js';
 import unifiedQueryReviewer from '../services/unifiedQueryReviewer.js';
 import safetyService from '../services/safetyService.js';
+import { isMongoConnected } from '../config/database.js';
 import QueryLog from '../models/QueryLog.js';
 
 const router = express.Router();
+
+const isMongoAvailable = () => isMongoConnected();
+
+const saveQueryLog = async (logData) => {
+  if (!isMongoAvailable()) {
+    return null;
+  }
+
+  try {
+    const logEntry = new QueryLog(logData);
+    await logEntry.save();
+    return logEntry;
+  } catch (error) {
+    console.log(`⚠️  Failed to save query log: ${error.message}`);
+    return null;
+  }
+};
 
 // Yoga-related keywords to check if query is relevant
 const yogaKeywords = [
@@ -120,7 +138,7 @@ I'm your Yoga AI Assistant. I'm here to help you with all things yoga!
 What would you like to know about yoga? 🧘‍♀️`;
 
       // Log greeting
-      const logEntry = new QueryLog({
+      const logEntry = await saveQueryLog({
         query,
         answer: greetingResponse,
         sources: [],
@@ -130,11 +148,10 @@ What would you like to know about yoga? 🧘‍♀️`;
         responseTime,
         timestamp: new Date()
       });
-      await logEntry.save();
 
       return res.json({
         success: true,
-        queryId: logEntry._id,
+        queryId: logEntry?._id || null,
         answer: greetingResponse,
         isUnsafe: false,
         isOffTopic: true,
@@ -166,7 +183,7 @@ I'm designed specifically to answer yoga-related questions. I can help with:
 **Please ask me something related to yoga, and I'll be happy to help!** 🧘`;
 
       // Log off-topic query
-      const logEntry = new QueryLog({
+      const logEntry = await saveQueryLog({
         query,
         answer: offTopicResponse,
         sources: [],
@@ -176,11 +193,10 @@ I'm designed specifically to answer yoga-related questions. I can help with:
         responseTime,
         timestamp: new Date()
       });
-      await logEntry.save();
 
       return res.json({
         success: true,
-        queryId: logEntry._id,
+        queryId: logEntry?._id || null,
         answer: offTopicResponse,
         isUnsafe: false,
         isOffTopic: true,
@@ -209,7 +225,7 @@ I'm designed specifically to answer yoga-related questions. I can help with:
       const responseTime = Date.now() - startTime;
 
       // Log unsafe query
-      const queryLog = new QueryLog({
+      const queryLog = await saveQueryLog({
         query: query.trim(),
         retrievedChunks: [],
         answer: safetyResponse,
@@ -219,12 +235,13 @@ I'm designed specifically to answer yoga-related questions. I can help with:
         model: 'safety-filter',
         responseTime
       });
-      await queryLog.save();
-      console.log(`💾 Unsafe query logged with ID: ${queryLog._id}`);
+      if (queryLog?._id) {
+        console.log(`💾 Unsafe query logged with ID: ${queryLog._id}`);
+      }
 
       return res.json({
         success: true,
-        queryId: queryLog._id,
+        queryId: queryLog?._id || null,
         answer: safetyResponse,
         isUnsafe: true,
         safetyWarnings: detectedConditions.map(c => c.warning),
@@ -258,8 +275,8 @@ I'm designed specifically to answer yoga-related questions. I can help with:
     console.log(`   Total time: ${responseTime}ms`);
     console.log(`   Sources found: ${retrievedChunks.length}`);
 
-    // STEP 4: Log to MongoDB
-    const queryLog = new QueryLog({
+    // STEP 4: Log to MongoDB (if available)
+    const queryLog = await saveQueryLog({
       query: query.trim(),
       retrievedChunks: retrievedChunks.map(chunk => ({
         id: chunk.id,
@@ -276,13 +293,14 @@ I'm designed specifically to answer yoga-related questions. I can help with:
       responseTime
     });
 
-    await queryLog.save();
-    console.log(`💾 Query logged with ID: ${queryLog._id}`);
+    if (queryLog?._id) {
+      console.log(`💾 Query logged with ID: ${queryLog._id}`);
+    }
 
     // STEP 5: Send response
     res.json({
       success: true,
-      queryId: queryLog._id,
+      queryId: queryLog?._id || null,
       answer,
       isUnsafe: false,
       isOffTopic: false,
@@ -331,6 +349,13 @@ router.post('/feedback', async (req, res) => {
       });
     }
 
+    if (!isMongoAvailable()) {
+      return res.status(503).json({
+        success: false,
+        error: 'Feedback is unavailable because MongoDB is not configured'
+      });
+    }
+
     // Find and update the query log
     const queryLog = await QueryLog.findById(queryId);
 
@@ -370,6 +395,20 @@ router.post('/feedback', async (req, res) => {
 // GET /api/stats - Get usage statistics (optional analytics endpoint)
 router.get('/stats', async (req, res) => {
   try {
+    if (!isMongoAvailable()) {
+      return res.json({
+        success: true,
+        stats: {
+          totalQueries: 0,
+          unsafeQueries: 0,
+          queriesWithFeedback: 0,
+          positiveRating: 0,
+          averageResponseTime: 0
+        },
+        storage: 'disabled'
+      });
+    }
+
     const totalQueries = await QueryLog.countDocuments();
     const unsafeQueries = await QueryLog.countDocuments({ isUnsafe: true });
     const queriesWithFeedback = await QueryLog.countDocuments({ 'feedback.helpful': { $ne: null } });
@@ -404,10 +443,12 @@ router.get('/stats', async (req, res) => {
 router.get('/health', async (req, res) => {
   try {
     const vectorStoreReady = vectorStore.isInitialized;
+    const mongoStatus = isMongoAvailable() ? 'connected' : 'disabled';
     
     res.json({
       success: true,
       status: 'healthy',
+      mongoDB: mongoStatus,
       vectorStore: vectorStoreReady ? 'ready' : 'not initialized',
       documentsCount: vectorStore.documents.length
     });

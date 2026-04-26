@@ -90,7 +90,10 @@ async function startServer() {
     console.log('🚀 Starting Yoga RAG API Server...\n');
 
     // Connect to MongoDB
-    await connectDB();
+    const mongoConnected = await connectDB();
+    if (!mongoConnected) {
+      console.log('⚠️  MongoDB disabled. Query logging and feedback persistence are unavailable.');
+    }
 
     // Initialize vector store
     console.log('\n🔄 Initializing vector store...');

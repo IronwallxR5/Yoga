@@ -4,11 +4,15 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const connectDB = async () => {
+  const mongoUri = process.env.MONGODB_URI?.trim();
+
+  if (!mongoUri) {
+    console.log('⚠️  MONGODB_URI is not set. Running without MongoDB.');
+    return false;
+  }
+
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    const conn = await mongoose.connect(mongoUri);
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
     
@@ -28,10 +32,15 @@ const connectDB = async () => {
       process.exit(0);
     });
 
+    return true;
+
   } catch (error) {
-    console.error(`❌ Error connecting to MongoDB: ${error.message}`);
-    process.exit(1);
+    console.log(`⚠️  MongoDB unavailable: ${error.message}`);
+    console.log('⚠️  Continuing startup without MongoDB. Query logging will be disabled.');
+    return false;
   }
 };
+
+export const isMongoConnected = () => mongoose.connection.readyState === 1;
 
 export default connectDB;
